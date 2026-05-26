@@ -119,27 +119,23 @@ The dashboard reads from the `marts` schema and displays:
 - Agency workload
 - Resolution hours by borough
 
-## 6. Demo Screenshots
+## 6. Demo 
 
-The screenshots below show the successful local run of the project: n8n workflow, Airflow DAG, and dashboard web application reading transformed dbt marts.
+Demo below show the successful local run of the project: n8n workflow, Airflow DAG, and dashboard web application reading transformed dbt marts.
 
-### 6.1 Dashboard — KPI and trend overview
+### 6.1 Dashboard 
 
 ![Dashboard KPI and trend overview](docs/assets/screenshots/dashboard_01_overview.png)
 
-### 6.2 Dashboard — borough, status, agency and resolution charts
-
 ![Dashboard distribution and workload charts](docs/assets/screenshots/dashboard_02_distributions.png)
-
-### 6.3 Dashboard — top agencies table
 
 ![Dashboard top agencies table](docs/assets/screenshots/dashboard_03_top_agencies_table.png)
 
-### 6.4 Airflow — end-to-end DAG success
+### 6.2 Airflow — end-to-end DAG success
 
 ![Airflow DAG success](docs/assets/screenshots/airflow_dag_success.png)
 
-### 6.5 n8n — crawler workflow imported
+### 6.3 n8n — crawler workflow imported
 
 ![n8n ingestion workflow](docs/assets/screenshots/n8n_workflow_imported.png)
 
