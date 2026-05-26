@@ -1,0 +1,13 @@
+nyc_311_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('ANALYTICS_DB_HOST', 'postgres') }}"
+      user: "{{ env_var('ANALYTICS_DB_USER', 'airflow') }}"
+      password: "{{ env_var('ANALYTICS_DB_PASSWORD', 'airflow') }}"
+      port: "{{ env_var('ANALYTICS_DB_PORT', '5432') | int }}"
+      dbname: "{{ env_var('ANALYTICS_DB_NAME', 'analytics') }}"
+      schema: analytics
+      threads: 4
+      connect_timeout: 20

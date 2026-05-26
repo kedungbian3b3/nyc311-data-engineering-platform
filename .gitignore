@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+logs/*
+!logs/.gitkeep
+postgres-data/
+.dbt/target/
+dbt/projects/*/target/
+dbt/projects/*/dbt_packages/
+.DS_Store
+.vscode/

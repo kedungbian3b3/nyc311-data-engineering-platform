@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: stg_311_requests
+    description: Cleaned and typed NYC 311 service requests prepared for analytics.
+    columns:
+      - name: unique_key
+        tests:
+          - not_null
+          - unique
+      - name: created_date
+        tests:
+          - not_null
+      - name: complaint_type
+        tests:
+          - not_null
+      - name: borough
+        tests:
+          - not_null

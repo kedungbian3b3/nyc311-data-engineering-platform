@@ -1,0 +1,196 @@
+services:
+  postgres:
+    image: postgres:15-bookworm
+    container_name: nyc311-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  ingestion-api:
+    build:
+      context: .
+      dockerfile: docker/ingestion/Dockerfile
+    container_name: nyc311-ingestion-api
+    environment:
+      ANALYTICS_DB_HOST: postgres
+      ANALYTICS_DB_PORT: 5432
+      ANALYTICS_DB_NAME: analytics
+      ANALYTICS_DB_USER: airflow
+      ANALYTICS_DB_PASSWORD: airflow
+      NYC311_API_URL: https://data.cityofnewyork.us/resource/erm2-nwe9.json
+      INGEST_DEFAULT_LIMIT: 5000
+      INGEST_ALLOW_FIXTURE_FALLBACK: "true"
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: nyc311-n8n
+    environment:
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5678/
+      N8N_SECURE_COOKIE: "false"
+      N8N_USER_MANAGEMENT_DISABLED: "true"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_ENCRYPTION_KEY: local_nyc311_project_key_change_me_1234567890
+      GENERIC_TIMEZONE: Asia/Ho_Chi_Minh
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        n8n import:workflow --input=/workflows/nyc311_ingestion_workflow.json || true
+        n8n start
+    depends_on:
+      ingestion-api:
+        condition: service_started
+    restart: unless-stopped
+
+  airflow-init:
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
+    container_name: nyc311-airflow-init
+    environment: &airflow-common-env
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__WEBSERVER__SECRET_KEY: local_dev_secret_key_change_me
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Ho_Chi_Minh
+      AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: Asia/Ho_Chi_Minh
+      AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+      AIRFLOW_HOME: /opt/airflow
+      ANALYTICS_DB_HOST: postgres
+      ANALYTICS_DB_PORT: 5432
+      ANALYTICS_DB_NAME: analytics
+      ANALYTICS_DB_USER: airflow
+      ANALYTICS_DB_PASSWORD: airflow
+      INGESTION_API_URL: http://ingestion-api:8000
+      TZ: Asia/Ho_Chi_Minh
+    user: "0:0"
+    volumes: &airflow-common-volumes
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./config:/opt/airflow/config
+      - ./dbt/.dbt:/opt/airflow/dbt/.dbt
+      - ./dbt/projects:/opt/airflow/dbt/projects
+      - ./ingestion:/opt/airflow/ingestion
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        mkdir -p /opt/airflow/logs /opt/airflow/dags /opt/airflow/plugins
+        chown -R airflow:0 /opt/airflow/logs /opt/airflow/dags /opt/airflow/plugins /opt/airflow/dbt /opt/airflow/ingestion
+        airflow db migrate
+        airflow users create \
+          --username airflow \
+          --firstname Data \
+          --lastname Engineer \
+          --role Admin \
+          --email airflow@example.com \
+          --password airflow || true
+        airflow connections add analytics_postgres \
+          --conn-uri postgresql://airflow:airflow@postgres:5432/analytics || true
+        airflow variables set INGESTION_API_URL http://ingestion-api:8000 || true
+        airflow variables set NYC311_DEFAULT_LIMIT 5000 || true
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
+    container_name: nyc311-airflow-webserver
+    environment:
+      <<: *airflow-common-env
+    user: "${AIRFLOW_UID:-50000}:0"
+    volumes: *airflow-common-volumes
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+      ingestion-api:
+        condition: service_started
+    restart: unless-stopped
+
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
+    container_name: nyc311-airflow-scheduler
+    environment:
+      <<: *airflow-common-env
+    user: "${AIRFLOW_UID:-50000}:0"
+    volumes: *airflow-common-volumes
+    command: scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+      ingestion-api:
+        condition: service_started
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard/Dockerfile
+    container_name: nyc311-dashboard
+    environment:
+      ANALYTICS_DB_HOST: postgres
+      ANALYTICS_DB_PORT: 5432
+      ANALYTICS_DB_NAME: analytics
+      ANALYTICS_DB_USER: airflow
+      ANALYTICS_DB_PASSWORD: airflow
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "8501:8501"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  n8n-data:

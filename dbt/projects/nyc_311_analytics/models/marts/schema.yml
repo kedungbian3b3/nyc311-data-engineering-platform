@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: mart_daily_requests
+    description: Daily request volume and resolution overview.
+    columns:
+      - name: created_day
+        tests: [not_null, unique]
+  - name: mart_complaint_types
+    description: Complaint type performance ranking.
+    columns:
+      - name: complaint_type
+        tests: [not_null, unique]
+  - name: mart_borough_complaints
+    description: Complaint mix by borough.
+    columns:
+      - name: borough
+        tests: [not_null]
+      - name: complaint_type
+        tests: [not_null]
+  - name: mart_status_summary
+    description: Current status distribution.
+    columns:
+      - name: status
+        tests: [not_null, unique]
+  - name: mart_agency_performance
+    description: Agency-level request volume and resolution speed.
+    columns:
+      - name: agency
+        tests: [not_null, unique]
+  - name: mart_resolution_metrics
+    description: Resolution-time metrics by borough.
+    columns:
+      - name: borough
+        tests: [not_null, unique]

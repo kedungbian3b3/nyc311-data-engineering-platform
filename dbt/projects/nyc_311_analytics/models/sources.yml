@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: raw
+    database: analytics
+    schema: raw
+    description: Raw NYC 311 service requests loaded from the public Socrata API.
+    tables:
+      - name: nyc_311_service_requests
+        description: One row per NYC 311 service request.
+        loaded_at_field: ingested_at
+        columns:
+          - name: unique_key
+            description: Public unique identifier for the 311 request.
+            tests:
+              - not_null
+              - unique
+          - name: created_date
+            description: Timestamp when the service request was created.
+          - name: complaint_type
+            description: Complaint category reported to NYC 311.
