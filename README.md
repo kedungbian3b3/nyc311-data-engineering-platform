@@ -476,15 +476,3 @@ The ingestion service has a fixture fallback enabled by default for local demo s
 ```yaml
 INGEST_ALLOW_FIXTURE_FALLBACK: "false"
 ```
-
-## 14. CV Project Description
-
-**NYC 311 Data Engineering Platform** — Built an end-to-end ELT platform that ingests public NYC 311 service-request data from a Socrata API, stores raw records in PostgreSQL with idempotent upsert logic, transforms data using dbt into staging and mart layers, validates data quality through dbt tests, orchestrates the workflow with Apache Airflow, and serves a dashboard web application for monitoring complaint trends, agency workload, borough distribution, and resolution performance.
-
-Suggested CV bullet points:
-
-- Built a Dockerized ELT platform using Airflow, dbt, PostgreSQL, n8n, FastAPI, and Chart.js to process public NYC 311 service-request data.
-- Implemented idempotent API ingestion with PostgreSQL upsert logic, raw/staging/mart schema design, and dbt data quality tests.
-- Integrated n8n as a visual crawler workflow and Airflow as the production orchestration layer for reproducible ELT scheduling.
-- Designed dashboard-ready marts and a web dashboard to analyze daily request volume, top complaint types, agency workload, borough distribution, and resolution performance.
-- Packaged the project into a single Docker Compose environment for reproducible local deployment and portfolio demonstration.
